@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NexusBeatX</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom right, #20004d, #2e1aa0);
+      color: white;
+    }
+    nav {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: rgba(0, 0, 0, 0.4);
+      padding: 10px 20px;
+      position: fixed;
+      width: 100%;
+      z-index: 10;
+    }
+    nav div.logo {
+      font-weight: bold;
+      font-size: 1.2em;
+    }
+    nav div.links {
+      margin-top: 5px;
+    }
+    nav a {
+      color: white;
+      margin: 0 10px;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    @media(min-width: 600px) {
+      nav { flex-direction: row; justify-content: space-between; }
+      nav div.links { margin-top: 0; }
+    }
+    .section { padding: 100px 20px 40px; }
+    .hidden { display: none; }
+    h1, h2 { text-align: center; }
+    .upload-form {
+      max-width: 400px;
+      margin: auto;
+      background: rgba(255,255,255,0.1);
+      padding: 20px;
+      border-radius: 20px;
+    }
+    .upload-form input, .upload-form button {
+      display: block;
+      width: 100%;
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+    }
+    .upload-form .progress-bar {
+      width: 0%;
+      height: 10px;
+      background: limegreen;
+      border-radius: 10px;
+      transition: width 0.5s ease;
+    }
+    .card-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      padding: 20px;
+    }
+    .card {
+      width: 200px;
+      background: rgba(255,255,255,0.1);
+      padding: 10px;
+      border-radius: 15px;
+      text-align: center;
+    }
+    .card img {
+      width: 100%;
+      border-radius: 10px;
+    }
+    .card audio {
+      width: 100%;
+      margin-top: 10px;
+    }
+    .bg-stars {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: -1;
+    }
+  </style>
+</head>
+<body>
+  <canvas class="bg-stars"></canvas>
+  <nav>
+    <div class="logo">NexusBeatKI</div>
+    <div class="links">
+      <a onclick="showSection('home')">Home</a>
+      <a onclick="showSection('explore')">Entdecken</a>
+      <a onclick="showSection('upload')">Hochladen</a>
+      <a onclick="showSection('channel')">Mein Kanal</a>
+      <a onclick="showSection('login')">Login</a>
+    </div>
+  </nav>
+
+  <div id="home" class="section">
+    <h1>Nur KI. Nur Zukunft. Nur Sound.</h1>
+    <p style="text-align:center;">Entdecke und teile KI-generierte Musik mit NexusBeatKI</p>
+    <div class="card-container" id="songList"></div>
+  </div>
+
+  <div id="explore" class="section hidden">
+    <h2>Entdecken</h2>
+    <input type="text" id="search" placeholder="Suche nach Titel..." style="width:100%;max-width:400px;margin:auto;display:block;padding:10px;border-radius:10px">
+    <div class="card-container" id="searchResults"></div>
+  </div>
+
+  <div id="upload" class="section hidden">
+    <h2>Musik hochladen</h2>
+    <div class="upload-form">
+      <input type="file" id="thumb" accept="image/*">
+      <input type="file" id="audio" accept="audio/*">
+      <input type="text" id="artist" placeholder="Name *">
+      <input type="text" id="title" placeholder="Titel *">
+      <div class="progress-bar" id="progressBar"></div>
+      <button onclick="uploadSong()">Hochladen</button>
+    </div>
+  </div>
+
+  <div id="channel" class="section hidden">
+    <h2>Mein Kanal</h2>
+    <p id="channelInfo" style="text-align:center;"></p>
+    <div class="card-container" id="channelSongs"></div>
+  </div>
+
+  <div id="login" class="section hidden">
+    <h2>Login</h2>
+    <div class="upload-form">
+      <input type="text" id="username" placeholder="Benutzername">
+      <input type="password" id="password" placeholder="Passwort">
+      <button onclick="loginUser()">Einloggen</button>
+    </div>
+  </div>
+
+  <script>
+    let loggedIn = false;
+    let currentUser = '';
+    const sections = ['home', 'explore', 'upload', 'login', 'channel'];
+
+    function showSection(id) {
+      if ((id === 'home' || id === 'explore' || id === 'channel') && !loggedIn) {
+        alert('Bitte logge dich ein, um auf diese Seite zuzugreifen.');
+        return;
+      }
+      sections.forEach(sec => {
+        document.getElementById(sec).classList.add('hidden');
+      });
+      document.getElementById(id).classList.remove('hidden');
+      if (id === 'channel') renderChannel();
+    }
+
+    function loginUser() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+      if (username && password) {
+        loggedIn = true;
+        currentUser = username;
+        alert(`Willkommen, ${username}!`);
+        showSection('home');
+      } else {
+        alert('Bitte gib Benutzernamen und Passwort ein.');
+      }
+    }
+
+    const songs = [];
+
+    function uploadSong() {
+      const thumb = document.getElementById('thumb').files[0];
+      const audio = document.getElementById('audio').files[0];
+      const artist = currentUser || document.getElementById('artist').value.trim();
+      const title = document.getElementById('title').value.trim();
+      const progressBar = document.getElementById('progressBar');
+
+      if (!thumb || !audio || !artist || !title) {
+        alert("Bitte alle Felder ausfüllen.");
+        return;
+      }
+
+      const existing = songs.find(s => s.title === title && s.artist === artist);
+      if (existing) {
+        alert("Dieser Song wurde bereits hochgeladen.");
+        return;
+      }
+
+      progressBar.style.width = '0%';
+      setTimeout(() => progressBar.style.width = '100%', 100);
+
+      const thumbURL = URL.createObjectURL(thumb);
+      const audioURL = URL.createObjectURL(audio);
+
+      const song = { thumbURL, audioURL, artist, title, user: currentUser, views: 0 };
+      songs.unshift(song);
+      renderSongs();
+      setTimeout(() => alert("Upload erfolgreich!"), 500);
+    }
+
+    function createAudioCard(song) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <img src="${song.thumbURL}" alt="Thumbnail">
+        <strong>${song.title}</strong><br>
+        <em>${song.artist}</em><br>
+        <span>Aufrufe: <span class="views">${song.views}</span></span>
+        <audio controls controlsList="nodownload">
+          <source src="${song.audioURL}" type="audio/mpeg">
+          Dein Browser unterstützt kein Audio.
+        </audio>
+      `;
+
+      const audio = card.querySelector('audio');
+      let timer;
+      audio.addEventListener('play', () => {
+        timer = setTimeout(() => {
+          song.views++;
+          card.querySelector('.views').innerText = song.views;
+        }, 10000); // 10 Sekunden
+      });
+      audio.addEventListener('pause', () => {
+        clearTimeout(timer);
+      });
+
+      return card;
+    }
+
+    function renderSongs() {
+      const list = document.getElementById('songList');
+      const search = document.getElementById('searchResults');
+      list.innerHTML = '';
+      search.innerHTML = '';
+      songs.forEach(song => {
+        const card = createAudioCard(song);
+        list.appendChild(card.cloneNode(true));
+        search.appendChild(card);
+      });
+    }
+
+    function renderChannel() {
+      const channelList = document.getElementById('channelSongs');
+      const info = document.getElementById('channelInfo');
+      info.innerText = `Kanal von ${currentUser}`;
+      channelList.innerHTML = '';
+      songs.filter(s => s.user === currentUser).forEach(song => {
+        const card = createAudioCard(song);
+        channelList.appendChild(card);
+      });
+    }
+
+    document.getElementById('search').addEventListener('input', function(e) {
+      const val = e.target.value.toLowerCase();
+      const cards = document.querySelectorAll('#searchResults .card');
+      cards.forEach(card => {
+        card.style.display = card.innerText.toLowerCase().includes(val) ? 'block' : 'none';
+      });
+    });
+
+    const canvas = document.querySelector('.bg-stars');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const stars = Array(100).fill().map(() => ({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: Math.random() * 1.5, dx: Math.random() * 0.5 }));
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      stars.forEach(s => {
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
+        s.x += s.dx; if (s.x > canvas.width) s.x = 0;
+      });
+      requestAnimationFrame(animate);
+    }
+    animate();
+  </script>
+</body>
+</html>
