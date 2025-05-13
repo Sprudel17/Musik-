@@ -1,0 +1,686 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexusBeatKI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/particles.js/2.0.0/particles.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Montserrat:wght@400;500&display=swap');
+    body {
+      background: #0d0c1d;
+      color: #ffffff;
+      font-family: 'Montserrat', sans-serif;
+    }
+    h1, h2, h3 {
+      font-family: 'Orbitron', sans-serif;
+    }
+    .neon-hover {
+      transition: all 0.3s ease;
+    }
+    .neon-hover:hover {
+      box-shadow: 0 0 10px #00f0ff, 0 0 20px #8f00ff;
+      transform: scale(1.05);
+    }
+    #particles-js {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+    }
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      border-radius: 5px;
+      z-index: 1000;
+      transition: opacity 0.5s ease;
+    }
+    .toast-success { background: #00f0ff; color: #0d0c1d; }
+    .toast-error { background: #ff4d4d; color: #ffffff; }
+    .error-message { color: #ff4d4d; font-size: 0.9rem; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // Toast Notification
+    const Toast = ({ message, type, onClose }) => {
+      useEffect(() => {
+        const timer = setTimeout(onClose, 3000);
+        return () => clearTimeout(timer);
+      }, [onClose]);
+      return <div className={`toast toast-${type}`}>{message}</div>;
+    };
+
+    // Error Boundary
+    class ErrorBoundary extends React.Component {
+      state = { hasError: false };
+      static getDerivedStateFromError() {
+        return { hasError: true };
+      }
+      render() {
+        if (this.state.hasError) {
+          return <div className="py-10 px-6 text-center">Etwas ist schiefgelaufen. Bitte lade die Seite neu.</div>;
+        }
+        return this.props.children;
+      }
+    }
+
+    // Navigation
+    const Navbar = ({ user, setView, setUser }) => (
+      <nav className="bg-[#0d0c1d] border-b border-[#8f00ff] py-4 px-6 flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-[#00f0ff]">NexusBeatKI</h1>
+        <div className="space-x-4">
+          <button onClick={() => setView('home')} className="text-[#ffffff] hover:text-[#00f0ff]">Home</button>
+          <button onClick={() => setView('discover')} className="text-[#ffffff] hover:text-[#00f0ff]">Entdecken</button>
+          <button onClick={() => setView('upload')} className="text-[#ffffff] hover:text-[#00f0ff]">Hochladen</button>
+          {user ? (
+            <>
+              <button onClick={() => setView('profile')} className="text-[#ffffff] hover:text-[#00f0ff]">{user.email.split('@')[0]}</button>
+              <button onClick={() => { setUser(null); localStorage.removeItem('currentUser'); }} className="text-[#ffffff] hover:text-[#00f0ff]">Logout</button>
+            </>
+          ) : (
+            <button onClick={() => setView('login')} className="text-[#ffffff] hover:text-[#00f0ff]">Login</button>
+          )}
+        </div>
+      </nav>
+    );
+
+    // Hero Banner
+    const Hero = () => (
+      <div className="bg-gradient-to-r from-[#8f00ff] to-[#00f0ff] text-center py-20">
+        <h1 className="text-5xl font-bold mb-4">Nur KI. Nur Zukunft. Nur Sound.</h1>
+        <p className="text-xl">Entdecke und teile KI-generierte Musik mit NexusBeatKI.</p>
+      </div>
+    );
+
+    // Trending Tracks
+    const TrendingTracks = ({ setCurrentTrack }) => {
+      const [tracks, setTracks] = useState(JSON.parse(localStorage.getItem('tracks')) || []);
+
+      useEffect(() => {
+        const storedTracks = JSON.parse(localStorage.getItem('tracks')) || [];
+        setTracks(storedTracks);
+      }, []);
+
+      return (
+        <div className="py-10 px-6">
+          <h2 className="text-3xl font-bold mb-6">Trending KI-Tracks</h2>
+          <div className="flex space-x-4 overflow-x-auto">
+            {tracks.map(track => (
+              <div key={track._id} className="min-w-[200px] bg-[#1a1a2e] p-4 rounded-lg neon-hover cursor-pointer" onClick={() => setCurrentTrack(track)}>
+                <img
+                  src={track.cover || "https://via.placeholder.com/200?text=No+Cover"}
+                  alt={track.title}
+                  className="w-full h-32 object-cover rounded mb-2"
+                />
+                <h3 className="text-lg font-bold">{track.title}</h3>
+                <p className="text-sm text-[#00f0ff]">{track.name}</p>
+                <p className="text-sm">Aufrufe: {track.views || 0}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    // Discover Page
+    const Discover = ({ setCurrentTrack }) => {
+      const [tracks, setTracks] = useState(JSON.parse(localStorage.getItem('tracks')) || []);
+      const [search, setSearch] = useState('');
+
+      useEffect(() => {
+        const storedTracks = JSON.parse(localStorage.getItem('tracks')) || [];
+        setTracks(storedTracks);
+      }, []);
+
+      const filteredTracks = tracks.filter(track =>
+        track.title.toLowerCase().includes(search.toLowerCase())
+      );
+
+      return (
+        <div className="py-10 px-6">
+          <h2 className="text-3xl font-bold mb-6">Entdecken</h2>
+          <input
+            type="text"
+            placeholder="Suche nach Titel..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full max-w-xs p-2 bg-[#1a1a2e] rounded mb-6"
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredTracks.map(track => (
+              <div
+                key={track._id}
+                className="bg-[#1a1a2e] p-4 rounded-lg neon-hover cursor-pointer"
+                onClick={() => setCurrentTrack(track)}
+              >
+                <img
+                  src={track.cover || "https://via.placeholder.com/200?text=No+Cover"}
+                  alt={track.title}
+                  className="w-full h-32 object-cover rounded mb-2"
+                />
+                <h3 className="text-lg font-bold">{track.title}</h3>
+                <p className="text-sm text-[#00f0ff]">{track.name}</p>
+                <p className="text-sm">Aufrufe: {track.views || 0}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    // Music Upload
+    const UploadForm = ({ user, setToast }) => {
+      const [file, setFile] = useState(null);
+      const [cover, setCover] = useState(null);
+      const [name, setName] = useState('');
+      const [title, setTitle] = useState('');
+      const [loading, setLoading] = useState(false);
+
+      const validateFile = (file) => {
+        const maxSize = 100 * 1024 * 1024 * 1024; // 100GB
+        if (!file) return 'Bitte wähle eine Audiodatei.';
+        if (!['audio/mpeg', 'audio/wav'].includes(file.type)) return 'Nur MP3 oder WAV erlaubt.';
+        if (file.size > maxSize) return 'Audiodatei zu groß (max. 100GB).';
+        return null;
+      };
+
+      const validateCover = (cover) => {
+        const maxCoverSize = 10 * 1024 * 1024; // 10MB
+        if (!cover) return null; // Cover is optional
+        if (!['image/jpeg', 'image/png'].includes(cover.type)) return 'Nur JPEG oder PNG für Cover erlaubt.';
+        if (cover.size > maxCoverSize) return 'Cover-Bild zu groß (max. 10MB).';
+        return null;
+      };
+
+      const getAccountStorage = () => {
+        const tracks = JSON.parse(localStorage.getItem('tracks')) || [];
+        const userTracks = tracks.filter(track => track.email === user.email);
+        return userTracks.reduce((total, track) => total + (track.size || 0), 0);
+      };
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        const fileError = validateFile(file);
+        const coverError = validateCover(cover);
+        if (fileError || coverError || !name || !title) {
+          setToast({ message: fileError || coverError || 'Bitte fülle alle Pflichtfelder aus.', type: 'error' });
+          return;
+        }
+
+        const accountStorage = getAccountStorage();
+        const maxAccountStorage = 100 * 1024 * 1024 * 1024; // 100GB
+        if (accountStorage + file.size > maxAccountStorage) {
+          setToast({ message: 'Account-Speichergrenze von 100GB erreicht.', type: 'error' });
+          return;
+        }
+
+        setLoading(true);
+        const trackUrl = URL.createObjectURL(file); // Temporary URL for playback
+        const tracks = JSON.parse(localStorage.getItem('tracks')) || [];
+        const newTrack = {
+          _id: Date.now().toString(),
+          name,
+          title,
+          url: trackUrl,
+          views: 0,
+          email: user.email,
+          size: file.size // Store file size for account limit
+        };
+
+        if (cover) {
+          const reader = new FileReader();
+          reader.onload = () => {
+            newTrack.cover = reader.result; // Store cover as base64
+            tracks.push(newTrack);
+            localStorage.setItem('tracks', JSON.stringify(tracks));
+            setToast({ message: 'Upload erfolgreich! Dein Lied ist jetzt verfügbar.', type: 'success' });
+            setFile(null);
+            setCover(null);
+            setName('');
+            setTitle('');
+            setLoading(false);
+          };
+          reader.onerror = () => {
+            setToast({ message: 'Fehler beim Lesen des Cover-Bildes.', type: 'error' });
+            setLoading(false);
+          };
+          reader.readAsDataURL(cover);
+        } else {
+          tracks.push(newTrack);
+          localStorage.setItem('tracks', JSON.stringify(tracks));
+          setToast({ message: 'Upload erfolgreich! Dein Lied ist jetzt verfügbar.', type: 'success' });
+          setFile(null);
+          setCover(null);
+          setName('');
+          setTitle('');
+          setLoading(false);
+        }
+      };
+
+      return (
+        <div className="py-10 px-6 max-w-lg mx-auto">
+          <h2 className="text-3xl font-bold mb-6">Musik hochladen</h2>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <input
+              type="file"
+              accept=".mp3,.wav"
+              onChange={(e) => setFile(e.target.files[0])}
+              className="w-full p-2 bg-[#1a1a2e] rounded"
+              disabled={loading}
+            />
+            <input
+              type="file"
+              accept="image/jpeg,image/png"
+              onChange={(e) => setCover(e.target.files[0])}
+              className="w-full p-2 bg-[#1a1a2e] rounded"
+              disabled={loading}
+            />
+            <input
+              type="text"
+              placeholder="Name *"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full p-2 bg-[#1a1a2e] rounded"
+              required
+            />
+            <input
+              type="text"
+              placeholder="Titel *"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full p-2 bg-[#1a1a2e] rounded"
+              required
+            />
+            <button
+              type="submit"
+              className="w-full bg-[#8f00ff] text-white py-2 rounded neon-hover"
+              disabled={loading}
+            >
+              {loading ? 'Lädt...' : 'Hochladen'}
+            </button>
+          </form>
+        </div>
+      );
+    };
+
+    // Music Player
+    const MusicPlayer = ({ track, setToast }) => {
+      const [isPlaying, setIsPlaying] = useState(false);
+      const [volume, setVolume] = useState(1);
+      const [progress, setProgress] = useState(0);
+      const [currentTime, setCurrentTime] = useState(0);
+      const [viewCounted, setViewCounted] = useState(false);
+      const audioRef = useRef(new Audio());
+
+      useEffect(() => {
+        if (track) {
+          audioRef.current.src = track.url || '';
+          audioRef.current.volume = volume;
+          audioRef.current.ontimeupdate = () => {
+            setProgress((audioRef.current.currentTime / audioRef.current.duration) * 100 || 0);
+            setCurrentTime(audioRef.current.currentTime);
+            if (audioRef.current.currentTime >= 10 && !viewCounted) {
+              setViewCounted(true);
+              const tracks = JSON.parse(localStorage.getItem('tracks')) || [];
+              const updatedTracks = tracks.map(t =>
+                t._id === track._id ? { ...t, views: (t.views || 0) + 1 } : t
+              );
+              localStorage.setItem('tracks', JSON.stringify(updatedTracks));
+            }
+          };
+          audioRef.current.oncontextmenu = (e) => e.preventDefault(); // Disable right-click
+          audioRef.current.onloadeddata = () => {
+            if (isPlaying) audioRef.current.play().catch(() => setToast({ message: 'Fehler beim Abspielen', type: 'error' }));
+          };
+        }
+        return () => {
+          audioRef.current.pause();
+          audioRef.current.src = '';
+        };
+      }, [track, viewCounted, setToast]);
+
+      useEffect(() => {
+        setViewCounted(false); // Reset view count when track changes
+      }, [track]);
+
+      const togglePlay = () => {
+        if (isPlaying) {
+          audioRef.current.pause();
+          setIsPlaying(false);
+        } else {
+          audioRef.current.play().catch(() => setToast({ message: 'Fehler beim Abspielen', type: 'error' }));
+          setIsPlaying(true);
+        }
+      };
+
+      const formatTime = (seconds) => {
+        if (isNaN(seconds)) return '0:00';
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+      };
+
+      return track ? (
+        <div className="fixed bottom-0 w-full bg-[#1a1a2e] p-4 flex items-center space-x-4">
+          <img
+            src={track.cover || "https://via.placeholder.com/64?text=No+Cover"}
+            alt={track.title}
+            className="w-16 h-16 object-cover rounded"
+          />
+          <div className="flex-1">
+            <h3 className="text-lg font-bold">{track.title}</h3>
+            <p className="text-sm text-[#00f0ff]">{track.name} • Aufrufe: {track.views || 0}</p>
+            <div className="flex items-center space-x-2">
+              <span>{formatTime(currentTime)}</span>
+              <input
+                type="range"
+                value={progress || 0}
+                onChange={(e) => {
+                  const newTime = (e.target.value / 100) * audioRef.current.duration;
+                  audioRef.current.currentTime = newTime;
+                  setProgress(e.target.value);
+                }}
+                className="w-full"
+              />
+              <span>{formatTime(audioRef.current.duration || 0)}</span>
+            </div>
+          </div>
+          <button
+            onClick={togglePlay}
+            className="text-[#00f0ff] bg-[#8f00ff] px-4 py-2 rounded neon-hover"
+          >
+            {isPlaying ? 'Pause' : 'Play'}
+          </button>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={volume}
+            onChange={(e) => {
+              setVolume(e.target.value);
+              audioRef.current.volume = e.target.value;
+            }}
+            className="w-24"
+          />
+        </div>
+      ) : null;
+    };
+
+    // Login Form
+    const LoginForm = ({ setUser, setView, setToast }) => {
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [error, setError] = useState('');
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!email || !password) {
+          setError('Bitte fülle alle Felder aus');
+          setToast({ message: 'Bitte fülle alle Felder aus', type: 'error' });
+          return;
+        }
+        const users = JSON.parse(localStorage.getItem('users')) || [];
+        const user = users.find(u => u.email === email && u.password === password);
+        if (!user) {
+          setError('Ungültige E-Mail oder Passwort');
+          setToast({ message: 'Ungültige E-Mail oder Passwort', type: 'error' });
+          return;
+        }
+        localStorage.setItem('currentUser', JSON.stringify({ email }));
+        setUser({ email });
+        setView('home');
+        setToast({ message: 'Login erfolgreich! Willkommen!', type: 'success' });
+      };
+
+      return (
+        <div className="py-10 px-6 max-w-lg mx-auto">
+          <h2 className="text-3xl font-bold mb-6">Login</h2>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <input
+                type="email"
+                placeholder="E-Mail"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full p-2 bg-[#1a1a2e] rounded"
+                required
+              />
+              {error && <p className="error-message">{error}</p>}
+            </div>
+            <input
+              type="password"
+              placeholder="Passwort"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-2 bg-[#1a1a2e] rounded"
+              required
+            />
+            <button
+              type="submit"
+              className="w-full bg-[#8f00ff] text-white py-2 rounded neon-hover"
+            >
+              Einloggen
+            </button>
+            <p className="text-center">
+              Noch kein Konto?{' '}
+              <button onClick={() => setView('register')} className="text-[#00f0ff]">
+                Registrieren
+              </button>
+            </p>
+          </form>
+        </div>
+      );
+    };
+
+    // Register Form
+    const RegisterForm = ({ setUser, setView, setToast }) => {
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [error, setError] = useState('');
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!email || !password) {
+          setError('Bitte fülle alle Felder aus');
+          setToast({ message: 'Bitte fülle alle Felder aus', type: 'error' });
+          return;
+        }
+        const users = JSON.parse(localStorage.getItem('users')) || [];
+        if (users.some(u => u.email === email)) {
+          setError('E-Mail bereits registriert');
+          setToast({ message: 'E-Mail bereits registriert', type: 'error' });
+          return;
+        }
+        users.push({ email, password }); // Note: Password not hashed for demo
+        localStorage.setItem('users', JSON.stringify(users));
+        localStorage.setItem('currentUser', JSON.stringify({ email }));
+        setUser({ email });
+        setView('home');
+        setToast({ message: 'Registrierung erfolgreich! Willkommen!', type: 'success' });
+      };
+
+      return (
+        <div className="py-10 px-6 max-w-lg mx-auto">
+          <h2 className="text-3xl font-bold mb-6">Registrieren</h2>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <input
+                type="email"
+                placeholder="E-Mail"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full p-2 bg-[#1a1a2e] rounded"
+                required
+              />
+              {error && <p className="error-message">{error}</p>}
+            </div>
+            <input
+              type="password"
+              placeholder="Passwort"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-2 bg-[#1a1a2e] rounded"
+              required
+            />
+            <button
+              type="submit"
+              className="w-full bg-[#8f00ff] text-white py-2 rounded neon-hover"
+            >
+              Registrieren
+            </button>
+            <p className="text-center">
+              Bereits ein Konto?{' '}
+              <button onClick={() => setView('login')} className="text-[#00f0ff]">
+                Einloggen
+              </button>
+            </p>
+          </form>
+        </div>
+      );
+    };
+
+    // Profile Page
+    const Profile = ({ user }) => {
+      const [tracks, setTracks] = useState(JSON.parse(localStorage.getItem('tracks')) || []);
+
+      useEffect(() => {
+        const storedTracks = JSON.parse(localStorage.getItem('tracks')) || [];
+        setTracks(storedTracks.filter(track => track.email === user.email));
+      }, [user]);
+
+      return (
+        <div className="py-10 px-6">
+          <h2 className="text-3xl font-bold mb-6">Profil: {user.email.split('@')[0]}</h2>
+          <h3 className="text-xl mb-4">Deine hochgeladenen Tracks</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {tracks.map(track => (
+              <div key={track._id} className="bg-[#1a1a2e] p-4 rounded-lg">
+                <img
+                  src={track.cover || "https://via.placeholder.com/200?text=No+Cover"}
+                  alt={track.title}
+                  className="w-full h-32 object-cover rounded mb-2"
+                />
+                <h4 className="text-lg font-bold">{track.title}</h4>
+                <p className="text-sm text-[#00f0ff]">Aufrufe: {track.views || 0}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    // Main App
+    const App = () => {
+      const [view, setView] = useState('home');
+      const [user, setUser] = useState(null);
+      const [currentTrack, setCurrentTrack] = useState(null);
+      const [toast, setToast] = useState(null);
+
+      useEffect(() => {
+        particlesJS('particles-js', {
+          particles: {
+            number: { value: 80, density: { enable: true, value_area: 800 } },
+            color: { value: ['#8f00ff', '#00f0ff'] },
+            shape: { type: 'circle' },
+            opacity: { value: 0.5 },
+            size: { value: 3, random: true },
+            move: { enable: true, speed: 1, direction: 'none', random: true }
+          }
+        });
+
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        if (currentUser) {
+          setUser(currentUser);
+        }
+      }, []);
+
+      return (
+        <ErrorBoundary>
+          <div>
+            <div id="particles-js"></div>
+            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+            <Navbar user={user} setView={setView} setUser={setUser} />
+            {view === 'home' && (
+              <>
+                <Hero />
+                <TrendingTracks setCurrentTrack={setCurrentTrack} />
+              </>
+            )}
+            {view === 'discover' && <Discover setCurrentTrack={setCurrentTrack} />}
+            {view === 'upload' && (
+              user ? (
+                <UploadForm user={user} setToast={setToast} />
+              ) : (
+                <p className="py-10 px-6">Bitte logge dich ein, um Musik hochzuladen.</p>
+              )
+            )}
+            {view === 'login' && <LoginForm setUser={setUser} setView={setView} setToast={setToast} />}
+            {view === 'register' && <RegisterForm setUser={setUser} setView={setView} setToast={setToast} />}
+            {view === 'profile' && (
+              user ? (
+                <Profile user={user} />
+              ) : (
+                <p className="py-10 px-6">Bitte logge dich ein, um dein Profil zu sehen.</p>
+              )
+            )}
+            <MusicPlayer track={currentTrack} setToast={setToast} />
+          </div>
+        </ErrorBoundary>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
