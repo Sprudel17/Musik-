@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexusBeatX</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom right, #20004d, #2e1aa0);
+      color: white;
+    }
+    nav {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: rgba(0, 0, 0, 0.4);
+      padding: 10px 20px;
+      position: fixed;
+      width: 100%;
+      z-index: 10;
+    }
+    nav div.logo {
+      font-weight: bold;
+      font-size: 1.2em;
+    }
+    nav div.links {
+      margin-top: 5px;
+    }
+    nav a {
+      color: white;
+      margin: 0 10px;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    @media(min-width: 600px) {
+      nav { flex-direction: row; justify-content: space-between; }
+      nav div.links { margin-top: 0; }
+    }
+    .section { padding: 100px 20px 40px; }
+    .hidden { display: none; }
+    h1, h2 { text-align: center; }
+    .upload-form {
+      max-width: 400px;
+      margin: auto;
+      background: rgba(255,255,255,0.1);
+      padding: 20px;
+      border-radius: 20px;
+    }
+    .upload-form input, .upload-form button {
+      display: block;
+      width: 100%;
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+    }
+    .card-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      padding: 20px;
+    }
+    .card {
+      width: 200px;
+      background: rgba(255,255,255,0.1);
+      padding: 10px;
+      border-radius: 15px;
+      text-align: center;
+    }
+    .card img {
+      width: 100%;
+      border-radius: 10px;
+    }
+    .card audio {
+      width: 100%;
+      margin-top: 10px;
+    }
+    #uploadSuccess {
+      background: limegreen;
+      color: white;
+      text-align: center;
+      padding: 10px;
+      border-radius: 8px;
+      margin: 10px auto;
+      width: 100%;
+      max-width: 400px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="logo">NexusBeatKI</div>
+    <div class="links">
+      <a onclick="showSection('home')">Home</a>
+      <a onclick="showSection('upload')">Hochladen</a>
+      <a onclick="showSection('channel')">Mein Kanal</a>
+      <a id="authBtn" onclick="handleAuth()">Login</a>
+    </div>
+  </nav>
+
+  <div id="home" class="section">
+    <h1>Nur KI. Nur Zukunft. Nur Sound.</h1>
+    <p style="text-align:center;">Entdecke und teile KI-generierte Musik mit NexusBeatKI</p>
+    <div class="card-container" id="songList"></div>
+  </div>
+
+  <div id="upload" class="section hidden">
+    <h2>Musik hochladen</h2>
+    <div class="upload-form">
+      <input type="file" id="thumb" accept="image/*">
+      <input type="file" id="audio" accept="audio/*">
+      <input type="text" id="title" placeholder="Songtitel">
+      <button onclick="uploadSong()">Speichern</button>
+      <div id="uploadSuccess">Upload erfolgreich!</div>
+    </div>
+  </div>
+
+  <div id="channel" class="section hidden">
+    <h2>Mein Kanal</h2>
+    <div class="card-container" id="channelSongs"></div>
+  </div>
+
+  <div id="login" class="section">
+    <h2>Login</h2>
+    <div class="upload-form">
+      <input type="email" id="email" placeholder="E-Mail">
+      <input type="password" id="password" placeholder="Passwort">
+      <input type="text" id="displayName" placeholder="Anzeigename">
+      <button onclick="loginUser()">Einloggen</button>
+    </div>
+  </div>
+
+  <script>
+    let users = JSON.parse(localStorage.getItem('users')) || {};
+    let songs = JSON.parse(localStorage.getItem('songs')) || {};
+    let currentUser = localStorage.getItem('currentUser') || null;
+
+    if (currentUser) {
+      showSection('home');
+      renderAuthButton();
+    } else {
+      showSection('login');
+    }
+
+    function showSection(id) {
+      document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+      document.getElementById(id).classList.remove('hidden');
+      if (id === 'channel') renderChannel();
+      if (id === 'home') renderSongs();
+    }
+
+    function loginUser() {
+      const email = document.getElementById('email').value.trim();
+      const pass = document.getElementById('password').value.trim();
+      const name = document.getElementById('displayName').value.trim();
+      if (!email || !pass) return alert("Bitte E-Mail und Passwort eingeben");
+
+      if (!users[email]) {
+        users[email] = { password: pass, name: name || email };
+        songs[email] = [];
+      } else if (users[email].password !== pass) {
+        return alert("Falsches Passwort");
+      }
+
+      currentUser = email;
+      localStorage.setItem('users', JSON.stringify(users));
+      localStorage.setItem('songs', JSON.stringify(songs));
+      localStorage.setItem('currentUser', currentUser);
+      renderAuthButton();
+      showSection('home');
+    }
+
+    function logoutUser() {
+      currentUser = null;
+      localStorage.removeItem('currentUser');
+      renderAuthButton();
+      showSection('login');
+    }
+
+    function handleAuth() {
+      if (currentUser) {
+        logoutUser();
+      } else {
+        showSection('login');
+      }
+    }
+
+    function renderAuthButton() {
+      const btn = document.getElementById('authBtn');
+      btn.textContent = currentUser ? "Logout" : "Login";
+    }
+
+    function uploadSong() {
+      const title = document.getElementById('title').value.trim();
+      const audioFile = document.getElementById('audio').files[0];
+      const thumbFile = document.getElementById('thumb').files[0];
+      if (!title || !audioFile || !thumbFile) return alert("Alles ausfüllen!");
+
+      if (songs[currentUser].some(song => song.title === title)) {
+        return alert("Dieser Song wurde bereits hochgeladen.");
+      }
+
+      const audioURL = URL.createObjectURL(audioFile);
+      const thumbURL = URL.createObjectURL(thumbFile);
+      const song = { title, audioURL, thumbURL, views: 0 };
+
+      songs[currentUser].push(song);
+      localStorage.setItem('songs', JSON.stringify(songs));
+      renderSongs();
+
+      const msg = document.getElementById('uploadSuccess');
+      msg.style.display = 'block';
+      setTimeout(() => msg.style.display = 'none', 2000);
+    }
+
+    function renderSongs() {
+      const list = document.getElementById('songList');
+      list.innerHTML = '';
+      if (!currentUser || !songs[currentUser]) return;
+      songs[currentUser].forEach((song, index) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <img src="${song.thumbURL}" alt="Cover">
+          <strong>${song.title}</strong><br>
+          <span>Aufrufe: <span id="views-${index}">${song.views || 0}</span></span>
+          <audio controls src="${song.audioURL}" onplay="countView(${index})"></audio>`;
+        list.appendChild(card);
+      });
+    }
+
+    function renderChannel() {
+      const list = document.getElementById('channelSongs');
+      list.innerHTML = '';
+      if (!currentUser || !songs[currentUser]) return;
+      songs[currentUser].forEach(song => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <img src="${song.thumbURL}" alt="Cover">
+          <strong>${song.title}</strong><br>
+          <audio controls src="${song.audioURL}"></audio>`;
+        list.appendChild(card);
+      });
+    }
+
+    function countView(index) {
+      const audio = document.querySelectorAll('audio')[index];
+      if (!audio.dataset.viewed) {
+        audio.dataset.viewed = 'true';
+        setTimeout(() => {
+          songs[currentUser][index].views = (songs[currentUser][index].views || 0) + 1;
+          localStorage.setItem('songs', JSON.stringify(songs));
+          document.getElementById(`views-${index}`).textContent = songs[currentUser][index].views;
+          audio.dataset.viewed = '';
+        }, 10000);
+      }
+    }
+  </script>
+</body>
+</html>
