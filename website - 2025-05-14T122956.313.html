@@ -1,0 +1,262 @@
+
+        <!DOCTYPE html>
+        <html lang="de">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style></style>
+        </head>
+        <body>
+          <!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NexusBeatX</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom right, #20004d, #2e1aa0);
+      color: white;
+    }
+    nav {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: rgba(0, 0, 0, 0.4);
+      padding: 10px 20px;
+      position: fixed;
+      width: 100%;
+      z-index: 10;
+    }
+    nav div.logo { font-weight: bold; font-size: 1.2em; }
+    nav div.links { margin-top: 5px; }
+    nav a {
+      color: white;
+      margin: 0 10px;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    @media(min-width: 600px) {
+      nav { flex-direction: row; justify-content: space-between; }
+      nav div.links { margin-top: 0; }
+    }
+    .section { padding: 100px 20px 40px; }
+    .hidden { display: none; }
+    h1, h2 { text-align: center; }
+    .upload-form {
+      max-width: 400px;
+      margin: auto;
+      background: rgba(255,255,255,0.1);
+      padding: 20px;
+      border-radius: 20px;
+    }
+    .upload-form input, .upload-form button {
+      display: block;
+      width: 100%;
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+    }
+    .upload-form .progress-bar {
+      width: 0%;
+      height: 10px;
+      background: limegreen;
+      border-radius: 10px;
+      transition: width 0.5s ease;
+    }
+    .card-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      padding: 20px;
+    }
+    .card {
+      width: 200px;
+      background: rgba(255,255,255,0.1);
+      padding: 10px;
+      border-radius: 15px;
+      text-align: center;
+    }
+    .card img {
+      width: 100%;
+      border-radius: 10px;
+    }
+    .card audio {
+      width: 100%;
+      margin-top: 10px;
+    }
+    .bg-stars {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: -1;
+    }
+    #keyPopup {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #000;
+      color: lime;
+      padding: 20px;
+      border-radius: 15px;
+      z-index: 2000;
+      width: 90%;
+      max-width: 500px;
+      font-family: monospace;
+    }
+    #keyPopup input,
+    #keyPopup textarea {
+      width: 100%;
+      margin: 5px 0;
+      padding: 10px;
+      background: #111;
+      color: lime;
+      border: none;
+      border-radius: 5px;
+      font-family: monospace;
+    }
+    #keyPopup button {
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px;
+      background: lime;
+      color: black;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <canvas class="bg-stars"></canvas>
+  <nav>
+    <div class="logo">NexusBeatKI</div>
+    <div class="links">
+      <a onclick="showSection('home')">Home</a>
+      <a onclick="showSection('explore')">Entdecken</a>
+      <a onclick="showSection('upload')">Hochladen</a>
+      <a onclick="showSection('channel')">Mein Kanal</a>
+    </div>
+  </nav>
+
+  <div id="home" class="section">
+    <h1>Nur KI. Nur Zukunft. Nur Sound.</h1>
+    <p style="text-align:center;">Entdecke und teile KI-generierte Musik mit NexusBeatKI</p>
+    <div class="card-container" id="songList"></div>
+  </div>
+
+  <div id="explore" class="section hidden">
+    <h2>Entdecken</h2>
+    <input type="text" id="search" placeholder="Suche nach Titel..." style="width:100%;max-width:400px;margin:auto;display:block;padding:10px;border-radius:10px">
+    <div class="card-container" id="searchResults"></div>
+  </div>
+
+  <div id="upload" class="section hidden">
+    <h2>Musik hochladen</h2>
+    <div class="upload-form">
+      <input type="file" id="thumb" accept="image/*">
+      <input type="file" id="audio" accept="audio/*">
+      <input type="text" id="artist" placeholder="Name *">
+      <input type="text" id="title" placeholder="Titel *">
+      <div class="progress-bar" id="progressBar"></div>
+      <button onclick="uploadSong()">Hochladen</button>
+    </div>
+  </div>
+
+  <div id="channel" class="section hidden">
+    <h2>Mein Kanal</h2>
+    <p id="channelInfo" style="text-align:center;"></p>
+    <div class="card-container" id="channelSongs"></div>
+  </div>
+
+  <!-- Impressum, Datenschutz, AGB -->
+  <div style="position: fixed; bottom: 10px; left: 10px; font-size: 0.85em; z-index: 1000;">
+    <a href="/impressum.html" style="color: white; margin-right: 12px; text-decoration: underline;">Impressum</a>
+    <a href="/datenschutz.html" style="color: white; margin-right: 12px; text-decoration: underline;">Datenschutz</a>
+    <a href="/agb.html" style="color: white; text-decoration: underline;">AGB</a>
+  </div>
+
+  <!-- Terminal mit API Keys, AGB & Datenschutz -->
+  <div id="keyPopup">
+    <h3>🔐 API-Schlüssel speichern</h3>
+    <input id="openaiKey" placeholder="OpenAI Key">
+    <input id="paypalKey" placeholder="PayPal Client-ID">
+    <input id="admobKey" placeholder="AdMob App-ID">
+    <input id="adsenseKey" placeholder="AdSense Publisher-ID">
+
+    <textarea id="agbText" placeholder="AGB Text eingeben..." rows="4"></textarea>
+    <textarea id="impressumText" placeholder="Impressum Text eingeben..." rows="4"></textarea>
+
+    <input id="agbLink" placeholder="AGB Link (z. B. /agb.html)">
+    <input id="datenschutzLink" placeholder="Datenschutz Link (z. B. /datenschutz.html)">
+
+    <button onclick="saveKeys()">Speichern</button>
+  </div>
+
+  <script>
+    // Navigation zwischen Seiten
+    function showSection(id) {
+      document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    // Tasten-Shortcuts für Terminal
+    let keyBuffer = '';
+    window.addEventListener('keydown', (e) => {
+      keyBuffer += e.key.toLowerCase();
+      if (keyBuffer.length > 3) keyBuffer = keyBuffer.slice(-3);
+      const popup = document.getElementById('keyPopup');
+      if (keyBuffer === 'abc') {
+        popup.style.display = 'block';
+        keyBuffer = '';
+      }
+      if (keyBuffer === '123') {
+        popup.style.display = 'none';
+        keyBuffer = '';
+      }
+    });
+
+    // Keys & Texte speichern
+    function saveKeys() {
+      localStorage.setItem('api_openai', document.getElementById('openaiKey').value || '');
+      localStorage.setItem('api_paypal', document.getElementById('paypalKey').value || '');
+      localStorage.setItem('api_admob', document.getElementById('admobKey').value || '');
+      localStorage.setItem('api_adsense', document.getElementById('adsenseKey').value || '');
+      localStorage.setItem('agb_text', document.getElementById('agbText').value || '');
+      localStorage.setItem('impressum_text', document.getElementById('impressumText').value || '');
+      localStorage.setItem('agb_link', document.getElementById('agbLink').value || '');
+      localStorage.setItem('datenschutz_link', document.getElementById('datenschutzLink').value || '');
+      alert('✔️ Alles gespeichert!');
+      document.getElementById('keyPopup').style.display = 'none';
+    }
+
+    // Keys beim Laden anzeigen
+    window.onload = function() {
+      document.getElementById('openaiKey').value = localStorage.getItem('api_openai') || '';
+      document.getElementById('paypalKey').value = localStorage.getItem('api_paypal') || '';
+      document.getElementById('admobKey').value = localStorage.getItem('api_admob') || '';
+      document.getElementById('adsenseKey').value = localStorage.getItem('api_adsense') || '';
+      document.getElementById('agbText').value = localStorage.getItem('agb_text') || '';
+      document.getElementById('impressumText').value = localStorage.getItem('impressum_text') || '';
+      document.getElementById('agbLink').value = localStorage.getItem('agb_link') || '';
+      document.getElementById('datenschutzLink').value = localStorage.getItem('datenschutz_link') || '';
+    }
+  </script>
+</body>
+</html>
+
+          <script></script>
+        </body>
+        </html>
+      
