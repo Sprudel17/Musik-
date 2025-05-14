@@ -1,0 +1,245 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NexusBeatX – Web & App</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom right, #20004d, #2e1aa0);
+      color: white;
+    }
+    nav {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: rgba(0, 0, 0, 0.4);
+      padding: 10px 20px;
+      position: fixed;
+      width: 100%;
+      z-index: 10;
+    }
+    nav div.logo { font-weight: bold; font-size: 1.2em; }
+    nav div.links { margin-top: 5px; display: flex; flex-wrap: wrap; justify-content: center; }
+    nav a {
+      color: white;
+      margin: 5px 10px;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    @media(min-width: 600px) {
+      nav { flex-direction: row; justify-content: space-between; }
+      nav div.links { margin-top: 0; }
+    }
+    .section { padding: 100px 20px 40px; }
+    .hidden { display: none; }
+    h1, h2 { text-align: center; }
+    .upload-form {
+      max-width: 400px;
+      margin: auto;
+      background: rgba(255,255,255,0.1);
+      padding: 20px;
+      border-radius: 20px;
+    }
+    .upload-form input, .upload-form button {
+      display: block;
+      width: 100%;
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+    }
+    .upload-form .progress-bar {
+      width: 0%;
+      height: 10px;
+      background: limegreen;
+      border-radius: 10px;
+      transition: width 0.5s ease;
+    }
+    .card-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      padding: 20px;
+    }
+    .card {
+      width: 200px;
+      background: rgba(255,255,255,0.1);
+      padding: 10px;
+      border-radius: 15px;
+      text-align: center;
+    }
+    .card img {
+      width: 100%;
+      border-radius: 10px;
+    }
+    .card audio {
+      width: 100%;
+      margin-top: 10px;
+    }
+    .footer-links {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      font-size: 0.85em;
+      z-index: 1000;
+    }
+    .footer-links a {
+      color: white;
+      margin-right: 12px;
+      text-decoration: underline;
+    }
+    #keyPopup {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #000;
+      color: lime;
+      padding: 20px;
+      border-radius: 15px;
+      z-index: 2000;
+      width: 90%;
+      max-width: 500px;
+      font-family: monospace;
+    }
+    #keyPopup input,
+    #keyPopup textarea {
+      width: 100%;
+      margin: 5px 0;
+      padding: 10px;
+      background: #111;
+      color: lime;
+      border: none;
+      border-radius: 5px;
+      font-family: monospace;
+    }
+    #keyPopup button {
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px;
+      background: lime;
+      color: black;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="logo">NexusBeatX</div>
+    <div class="links">
+      <a onclick="showSection('home')">Home</a>
+      <a onclick="showSection('explore')">Entdecken</a>
+      <a onclick="showSection('upload')" id="uploadLink">Hochladen</a>
+      <a onclick="showSection('channel')">Mein Kanal</a>
+    </div>
+  </nav>
+
+  <div id="home" class="section">
+    <h1>KI-Musikplattform – Web & App</h1>
+    <p style="text-align:center;">Deine KI-Sounds, immer dabei.</p>
+    <div class="card-container" id="songList"></div>
+  </div>
+
+  <div id="explore" class="section hidden">
+    <h2>Entdecken</h2>
+    <input type="text" id="search" placeholder="Suche nach Titel..." style="width:100%;max-width:400px;margin:auto;display:block;padding:10px;border-radius:10px">
+    <div class="card-container" id="searchResults"></div>
+  </div>
+
+  <div id="upload" class="section hidden">
+    <h2>Musik hochladen</h2>
+    <div class="upload-form">
+      <input type="file" id="thumb" accept="image/*">
+      <input type="file" id="audio" accept="audio/*">
+      <input type="text" id="artist" placeholder="Name *">
+      <input type="text" id="title" placeholder="Titel *">
+      <div class="progress-bar" id="progressBar"></div>
+      <button onclick="uploadSong()">Hochladen</button>
+    </div>
+  </div>
+
+  <div id="channel" class="section hidden">
+    <h2>Mein Kanal</h2>
+    <div class="card-container" id="channelSongs"></div>
+  </div>
+
+  <div class="footer-links">
+    <a href="/impressum.html">Impressum</a>
+    <a href="/datenschutz.html">Datenschutz</a>
+    <a href="/agb.html">AGB</a>
+  </div>
+
+  <div id="keyPopup">
+    <h3>API-Schlüssel & Einstellungen</h3>
+    <input id="openaiKey" placeholder="OpenAI Key">
+    <input id="paypalKey" placeholder="PayPal Client-ID">
+    <input id="admobKey" placeholder="AdMob App-ID">
+    <input id="adsenseKey" placeholder="AdSense Publisher-ID">
+    <textarea id="agbText" placeholder="AGB Text..." rows="4"></textarea>
+    <textarea id="impressumText" placeholder="Impressum Text..." rows="4"></textarea>
+    <input id="agbLink" placeholder="AGB Link (z. B. /agb.html)">
+    <input id="datenschutzLink" placeholder="Datenschutz Link (z. B. /datenschutz.html)">
+    <button onclick="saveKeys()">Speichern</button>
+  </div>
+
+  <script>
+    function showSection(id) {
+      document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    // Mobile erkennen und Upload-Link ausblenden
+    function isMobile() {
+      return /Mobi|Android/i.test(navigator.userAgent);
+    }
+
+    window.onload = function() {
+      if (isMobile()) {
+        document.getElementById("uploadLink").style.display = "none";
+        document.getElementById("upload").innerHTML = "<h2 style='text-align:center;'>Upload nur am Desktop möglich</h2>";
+      }
+      document.getElementById('openaiKey').value = localStorage.getItem('api_openai') || '';
+      document.getElementById('paypalKey').value = localStorage.getItem('api_paypal') || '';
+      document.getElementById('admobKey').value = localStorage.getItem('api_admob') || '';
+      document.getElementById('adsenseKey').value = localStorage.getItem('api_adsense') || '';
+      document.getElementById('agbText').value = localStorage.getItem('agb_text') || '';
+      document.getElementById('impressumText').value = localStorage.getItem('impressum_text') || '';
+      document.getElementById('agbLink').value = localStorage.getItem('agb_link') || '';
+      document.getElementById('datenschutzLink').value = localStorage.getItem('datenschutz_link') || '';
+    }
+
+    // Tastenkombi abc/123
+    let keyBuffer = '';
+    window.addEventListener('keydown', (e) => {
+      keyBuffer += e.key.toLowerCase();
+      if (keyBuffer.length > 3) keyBuffer = keyBuffer.slice(-3);
+      const popup = document.getElementById('keyPopup');
+      if (keyBuffer === 'abc') popup.style.display = 'block';
+      if (keyBuffer === '123') popup.style.display = 'none';
+    });
+
+    function saveKeys() {
+      localStorage.setItem('api_openai', document.getElementById('openaiKey').value);
+      localStorage.setItem('api_paypal', document.getElementById('paypalKey').value);
+      localStorage.setItem('api_admob', document.getElementById('admobKey').value);
+      localStorage.setItem('api_adsense', document.getElementById('adsenseKey').value);
+      localStorage.setItem('agb_text', document.getElementById('agbText').value);
+      localStorage.setItem('impressum_text', document.getElementById('impressumText').value);
+      localStorage.setItem('agb_link', document.getElementById('agbLink').value);
+      localStorage.setItem('datenschutz_link', document.getElementById('datenschutzLink').value);
+      alert('✔️ Alles gespeichert!');
+      document.getElementById('keyPopup').style.display = 'none';
+    }
+  </script>
+</body>
+</html>
